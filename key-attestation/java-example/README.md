@@ -14,8 +14,10 @@ This is a example java of how to verify **Fortanix DSM Key Attestation Statement
 
 The test code under [VerifyTest.java](src/test/java/com/fortanix/keyattestationstatementverifier/VerifyTest.java)
 shows how to properly verify the  **Fortanix DSM Key Attestation Statement** certificate:
-- `verifyStatementWithoutCrlCheck` for offline verification
-- `verifyStatementFullCheck` for online verification
+
+- `verifyStatementFromJsonWithoutCrlCheck`: Verify given `KeyAttestationResponse` in a JSON file, assuming the last certificate in authority chain is correct ROOT certificate and skipping CRL checks.
+- `verifyStatementFullCheck`: Verify given `KeyAttestationResponse` in a JSON file, the `Fortanix Attestation and Provisioning Root CA` is downloaded from https://pki.fortanix.com in runtime.
+- `verifyStatementFromPemWithoutCrlCheck`: Verify given statement and authority chain in a PEM file, the `Fortanix Attestation and Provisioning Root CA` is downloaded from https://pki.fortanix.com in runtime.
 
 # License
 

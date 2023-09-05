@@ -5,8 +5,12 @@ import com.fortanix.keyattestationstatementverifier.certchecker.DsmKeyAttestatio
 import com.fortanix.keyattestationstatementverifier.certchecker.FortanixRootCertChecker;
 import com.fortanix.keyattestationstatementverifier.certchecker.KeyAttestationCaCertChecker;
 import com.fortanix.keyattestationstatementverifier.certchecker.KeyAttestationStatementCertChecker;
+import com.fortanix.keyattestationstatementverifier.types.json.KeyAttestationResponse;
+
+import java.io.ByteArrayInputStream;
 import java.io.FileReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.cert.CertPath;
@@ -17,6 +21,7 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +36,34 @@ public final class Verify {
 
     static {
         Security.addProvider(new BouncyCastleProvider());
+    }
+
+    /**
+     * Verify given `KeyAttestationResponse` by using `trustRootCa`
+     *
+     * @param keyAttestationResponse Json object in format of
+     *                               `KeyAttestationResponse`, it should contains
+     *                               base64 encoded Authority Certificate chain and
+     *                               Attestation Statement
+     * @param trustRootCa            Trusted root CA, you need to get the
+     *                               certificate
+     *                               from Fortanix PKI website
+     * @param verifyCrl              If check the CRL, need network access
+     * @throws Exception
+     */
+    public static void verify(KeyAttestationResponse keyAttestationResponse,
+            X509Certificate trustRootCa, boolean verifyCrl) throws Exception {
+        LOGGER.info(String.format("Verifying KeyAttestationResponse: %s", keyAttestationResponse.toString()));
+        // skip verifying attestationStatement.format since it's been covered by json
+        // decoding
+        String attestationStatementStr = keyAttestationResponse.getAttestationStatement().getStatement();
+        List<String> authorityChain = keyAttestationResponse.getAuthorityChain();
+        LOGGER.info(
+                String.format("Decoding Attestation Statement Certificate: %s", attestationStatementStr.toString()));
+        X509Certificate attestationStatementCert = readBase64EncodedCertificate(attestationStatementStr);
+        LOGGER.info(String.format("Decoding Attestation Statement Certificate: %s", authorityChain.toString()));
+        List<X509Certificate> authorityChainCerts = readBase64EncodedCertificates(authorityChain);
+        verify(authorityChainCerts, attestationStatementCert, trustRootCa, verifyCrl);
     }
 
     /**
@@ -177,7 +210,7 @@ public final class Verify {
             pemParser.close();
         }
         if (certChain.isEmpty()) {
-            throw new KeyAttestationStatementVerifyException("No valid Certificate in given file");
+            throw new KeyAttestationStatementVerifyException("No valid Certificate in given reader");
         }
         return convertX509CertificateHolders(certChain);
     }
@@ -237,5 +270,37 @@ public final class Verify {
             throws Exception {
         PublicKey parentPublicKey = parent.getPublicKey();
         child.verify(parentPublicKey);
+    }
+
+    /**
+     * Helper function to decode base64 encoded x509 certificate into
+     * X509Certificate
+     *
+     * @param base64Certificate Source base64 string
+     * @return
+     * @throws Exception
+     */
+    public static X509Certificate readBase64EncodedCertificate(String base64Certificate) throws Exception {
+        byte[] certificateBytes = Base64.getDecoder().decode(base64Certificate);
+
+        CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+        return (X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(certificateBytes));
+    }
+
+    /**
+     * Helper function to decode base64 encoded list of x509 certificate into list
+     * of X509Certificate
+     *
+     * @param base64CertificateList Source base64 string list
+     * @return
+     * @throws Exception
+     */
+    public static List<X509Certificate> readBase64EncodedCertificates(List<String> base64CertificateList)
+            throws Exception {
+        List<X509Certificate> chain = new ArrayList<>();
+        for (String certStr : base64CertificateList) {
+            chain.add(readBase64EncodedCertificate(certStr));
+        }
+        return chain;
     }
 }
