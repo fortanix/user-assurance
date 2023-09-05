@@ -61,6 +61,8 @@ public final class Verify {
         // because 'Fortanix DSM SaaS Key Attestation Authority' is not a CA
         // certificate, so we need to manually check 'Fortanix DSM Key Attestation' is
         // correctly singed by 'Fortanix DSM SaaS Key Attestation Authority' certificate
+        verify_cert_signature(attestationStatement, authorityChain.get(0));
+
         CertChecker statementChecker = new KeyAttestationStatementCertChecker();
         CertChecker authorityChecker = new DsmKeyAttestationAuthorityCertChecker();
         CertChecker caChecker = new KeyAttestationCaCertChecker();
