@@ -1,4 +1,4 @@
-package com.fortanix.key_attestation_statement_verification;
+package com.fortanix.keyattestationstatementverifier;
 
 import org.junit.Ignore;
 import org.junit.Test;

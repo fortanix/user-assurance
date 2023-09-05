@@ -1,4 +1,4 @@
-package com.fortanix.key_attestation_statement_verification;
+package com.fortanix.keyattestationstatementverifier;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

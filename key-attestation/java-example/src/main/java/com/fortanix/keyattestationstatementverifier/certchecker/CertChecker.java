@@ -1,4 +1,4 @@
-package com.fortanix.key_attestation_statement_verification.certchecker;
+package com.fortanix.keyattestationstatementverifier.certchecker;
 
 import java.security.MessageDigest;
 import java.security.cert.X509Certificate;
@@ -21,9 +21,9 @@ import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 
-import com.fortanix.key_attestation_statement_verification.Common;
-import com.fortanix.key_attestation_statement_verification.KeyAttestationStatementVerifyException;
-import com.fortanix.key_attestation_statement_verification.types.ClusterNodeEnrollmentPolicy;
+import com.fortanix.keyattestationstatementverifier.Common;
+import com.fortanix.keyattestationstatementverifier.KeyAttestationStatementVerifyException;
+import com.fortanix.keyattestationstatementverifier.types.asn1.ClusterNodeEnrollmentPolicy;
 
 /**
  * This abstract class represents custom certificate checker

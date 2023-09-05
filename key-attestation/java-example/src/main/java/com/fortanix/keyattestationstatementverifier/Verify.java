@@ -1,5 +1,10 @@
-package com.fortanix.key_attestation_statement_verification;
+package com.fortanix.keyattestationstatementverifier;
 
+import com.fortanix.keyattestationstatementverifier.certchecker.CertChecker;
+import com.fortanix.keyattestationstatementverifier.certchecker.DsmKeyAttestationAuthorityCertChecker;
+import com.fortanix.keyattestationstatementverifier.certchecker.FortanixRootCertChecker;
+import com.fortanix.keyattestationstatementverifier.certchecker.KeyAttestationCaCertChecker;
+import com.fortanix.keyattestationstatementverifier.certchecker.KeyAttestationStatementCertChecker;
 import java.io.FileReader;
 import java.io.Reader;
 import java.security.PublicKey;
@@ -16,17 +21,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
-
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMParser;
-
-import com.fortanix.key_attestation_statement_verification.certchecker.CertChecker;
-import com.fortanix.key_attestation_statement_verification.certchecker.DsmKeyAttestationAuthorityCertChecker;
-import com.fortanix.key_attestation_statement_verification.certchecker.FortanixRootCertChecker;
-import com.fortanix.key_attestation_statement_verification.certchecker.KeyAttestationCaCertChecker;
-import com.fortanix.key_attestation_statement_verification.certchecker.KeyAttestationStatementCertChecker;
 
 public final class Verify {
     private static final Logger LOGGER = Logger.getLogger(Verify.class.getName());

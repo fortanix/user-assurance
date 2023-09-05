@@ -1,9 +1,9 @@
-package com.fortanix.key_attestation_statement_verification.types;
+package com.fortanix.keyattestationstatementverifier.types.asn1;
 
 import org.bouncycastle.asn1.*;
 import org.bouncycastle.asn1.x509.Extensions;
 
-import com.fortanix.key_attestation_statement_verification.Common;
+import com.fortanix.keyattestationstatementverifier.Common;
 
 /**
  * Java class for representing Fortanix defined ASN1 type:

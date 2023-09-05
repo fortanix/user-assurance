@@ -1,4 +1,4 @@
-package com.fortanix.key_attestation_statement_verification.types;
+package com.fortanix.keyattestationstatementverifier.types.asn1;
 
 import org.bouncycastle.asn1.*;
 

@@ -12,7 +12,7 @@ This is a example java of how to verify **Fortanix DSM Key Attestation Statement
 
 ## Explanation
 
-The test code under [VerifyTest.java](src/test/java/com/fortanix/key_attestation_statement_verification/VerifyTest.java)
+The test code under [VerifyTest.java](src/test/java/com/fortanix/keyattestationstatementverifier/VerifyTest.java)
 shows how to properly verify the  **Fortanix DSM Key Attestation Statement** certificate:
 - `verifyStatementWithoutCrlCheck` for offline verification
 - `verifyStatementFullCheck` for online verification

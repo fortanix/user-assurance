@@ -1,6 +1,6 @@
-package com.fortanix.key_attestation_statement_verification.types;
+package com.fortanix.keyattestationstatementverifier.types.asn1;
 
-import com.fortanix.key_attestation_statement_verification.KeyAttestationStatementVerifyException;
+import com.fortanix.keyattestationstatementverifier.KeyAttestationStatementVerifyException;
 
 /**
  * The helper type for checking X509 KeyUsage extension

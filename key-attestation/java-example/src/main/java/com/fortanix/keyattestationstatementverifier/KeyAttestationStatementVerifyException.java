@@ -1,4 +1,4 @@
-package com.fortanix.key_attestation_statement_verification;
+package com.fortanix.keyattestationstatementverifier;
 
 public class KeyAttestationStatementVerifyException extends Exception {
     public KeyAttestationStatementVerifyException(String msg) {
