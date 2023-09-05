@@ -4,6 +4,7 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Arrays;
+import java.util.logging.Logger;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -18,11 +19,24 @@ import com.fortanix.key_attestation_statement_verification.types.KeyUsage;
 import com.fortanix.key_attestation_statement_verification.types.NodeEnrollmentPolicyItem;
 
 public class DsmKeyAttestationAuthorityCertChecker extends CertChecker {
+    private static final Logger LOGGER = Logger.getLogger(DsmKeyAttestationAuthorityCertChecker.class.getName());
+    private String certCN;
+
     @Override
     public void check(X509Certificate cert, X509Certificate issuerCert) throws Exception {
+        LOGGER.info("Checking certificate content:\n" + cert.toString());
+        certCN = Common.getCommonName(cert);
+        LOGGER.info(String.format(
+                "Checking '%s' certificate's Validity", certCN));
         cert.checkValidity();
+        LOGGER.info(String.format(
+                "Checking '%s' certificate's Subject & Issuer", certCN));
         check_subject_and_issuer(cert);
+        LOGGER.info(String.format(
+                "Checking '%s' certificate's Public key length & type", certCN));
         check_public_key(cert);
+        LOGGER.info(String.format(
+                "Checking '%s' certificate's extensions", certCN));
         check_extensions(cert, issuerCert);
     }
 
@@ -59,10 +73,14 @@ public class DsmKeyAttestationAuthorityCertChecker extends CertChecker {
 
     private void check_extensions(X509Certificate cert, X509Certificate issuerCert) throws Exception {
         // check extension: Key Usage
+        LOGGER.info(String.format(
+                "Checking '%s' certificate's KeyUsages extension", certCN));
         KeyUsage[] authorityCertExpectedKeyUsage = { KeyUsage.DIGITAL_SIGNATURE };
         KeyUsage.checkKeyUsageHelper(Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, cert.getKeyUsage(),
                 authorityCertExpectedKeyUsage);
         // check extension: Basic Constraints
+        LOGGER.info(String.format(
+                "Checking '%s' certificate's BasicConstraints extension", certCN));
         int pathLenConstraint = cert.getBasicConstraints();
         if (pathLenConstraint != -1) {
             throw new KeyAttestationStatementVerifyException(
@@ -74,7 +92,7 @@ public class DsmKeyAttestationAuthorityCertChecker extends CertChecker {
         verifyDistPoint(Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, cert,
                 Common.FORTANIX_KEY_ATTESTATION_CA_CRL_URL);
         // check extension: Subject Key Identifier
-        checkSubjectKeyIdentifier(Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, cert, "SHA-1");
+        checkSubjectKeyIdentifier(cert, "SHA-1");
         // check extension: Authority Key Identifier
         if (!Arrays.equals(getExtAkiVal(cert), getExtSkiVal(issuerCert))) {
             throw new KeyAttestationStatementVerifyException(

@@ -2,6 +2,7 @@ package com.fortanix.key_attestation_statement_verification.certchecker;
 
 import java.security.MessageDigest;
 import java.security.cert.X509Certificate;
+import java.util.logging.Logger;
 
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -20,6 +21,7 @@ import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 
+import com.fortanix.key_attestation_statement_verification.Common;
 import com.fortanix.key_attestation_statement_verification.KeyAttestationStatementVerifyException;
 import com.fortanix.key_attestation_statement_verification.types.ClusterNodeEnrollmentPolicy;
 
@@ -27,6 +29,8 @@ import com.fortanix.key_attestation_statement_verification.types.ClusterNodeEnro
  * This abstract class represents custom certificate checker
  */
 public abstract class CertChecker {
+    private static Logger LOGGER = Logger.getLogger(CertChecker.class.getName());
+
     /**
      * This function should check all details in given certificate `cert`
      *
@@ -36,7 +40,17 @@ public abstract class CertChecker {
      */
     abstract public void check(X509Certificate cert, X509Certificate issuerCert) throws Exception;
 
+    /**
+     * Verify the CrlDistPoint extension in given certificate contains expected URL
+     *
+     * @param errStrPrefix
+     * @param cert         Source certificate
+     * @param expectedCrl  Expected CRL URL
+     * @throws Exception
+     */
     protected void verifyDistPoint(String errStrPrefix, X509Certificate cert, String expectedCrl) throws Exception {
+        LOGGER.info(String.format("Checking if '%s' certificate's CrlDistPoint contains: %s",
+                Common.getCommonName(cert), expectedCrl));
         byte[] crlDistPointExtOctetBytes = cert.getExtensionValue("2.5.29.31");
         if (crlDistPointExtOctetBytes == null) {
             throw new KeyAttestationStatementVerifyException(
@@ -72,20 +86,23 @@ public abstract class CertChecker {
      * Check given certificate's SubjectKeyIdentifier extension matches its Public
      * Subject Key info
      *
-     * @param errStrPrefix
-     * @param cert         Certificate to be checked
-     * @param digestAlgo   Hash algorithm name used for creating
-     *                     SubjectKeyIdentifier
+     * @param cert       Certificate to be checked
+     * @param digestAlgo Hash algorithm name used for creating
+     *                   SubjectKeyIdentifier
+     *
      * @throws Exception
      */
-    protected void checkSubjectKeyIdentifier(String errStrPrefix, X509Certificate cert, String digestAlgo)
+    protected void checkSubjectKeyIdentifier(X509Certificate cert, String digestAlgo)
             throws Exception {
+        LOGGER.info(String.format(
+                "Checking if '%s' certificate's SubjectKeyIdentifier extension matches its Public Subject Key info",
+                Common.getCommonName(cert)));
         byte[] computedSkiVal = getComputedSkiVal(cert, digestAlgo);
         byte[] skiVal = getExtSkiVal(cert);
         // Compare both SKIs
         if (!java.util.Arrays.equals(skiVal, computedSkiVal)) {
             throw new KeyAttestationStatementVerifyException(
-                    errStrPrefix
+                    Common.getCommonName(cert)
                             + " certificate Subject Key Identifier content not match with Subject Public Key");
         }
     }
@@ -98,6 +115,9 @@ public abstract class CertChecker {
      * @throws Exception
      */
     protected byte[] getExtSkiVal(X509Certificate cert) throws Exception {
+        LOGGER.info(String.format(
+                "Getting '%s' certificate's SubjectKeyIdentifier extension",
+                Common.getCommonName(cert)));
         X509CertificateHolder certHolder = new JcaX509CertificateHolder(cert);
         SubjectKeyIdentifier ski = SubjectKeyIdentifier.fromExtensions(certHolder.getExtensions());
         if (ski == null) {
@@ -115,6 +135,9 @@ public abstract class CertChecker {
      *                   Authority Key Identifier extension found
      */
     protected byte[] getExtAkiVal(X509Certificate cert) throws Exception {
+        LOGGER.info(String.format(
+                "Getting '%s' certificate's AuthorityKeyIdentifier extension",
+                Common.getCommonName(cert)));
         X509CertificateHolder certHolder = new JcaX509CertificateHolder(cert);
         AuthorityKeyIdentifier aki = AuthorityKeyIdentifier.fromExtensions(certHolder.getExtensions());
         if (aki == null) {
@@ -133,6 +156,9 @@ public abstract class CertChecker {
      * @throws Exception
      */
     protected byte[] getComputedSkiVal(X509Certificate cert, String digestAlgo) throws Exception {
+        LOGGER.info(String.format(
+                "Computing '%s' certificate's Subject Key Identifier value from certificate's Public Subject Key",
+                Common.getCommonName(cert)));
         byte[] certPkVal = cert.getPublicKey().getEncoded();
         MessageDigest md = MessageDigest.getInstance(digestAlgo);
         byte[] computedSkiVal = md.digest(certPkVal);
@@ -141,7 +167,7 @@ public abstract class CertChecker {
 
     /**
      * Get specific CertificatePolicyInfo from CertificatePolicies extension
-     * 
+     *
      * @param cert             Source certificate
      * @param policyIdentifier Specific OID of CertificatePolicyInfo
      * @return PolicyInformation that matches given OID
@@ -150,6 +176,9 @@ public abstract class CertChecker {
      */
     protected PolicyInformation getCertificatePolicyInfoByOID(X509Certificate cert,
             ASN1ObjectIdentifier policyIdentifier) throws Exception {
+        LOGGER.info(String.format(
+                "Getting '%s' certificate's CertificatePolicyInfo with OID: %s from CertificatePolicies extension",
+                Common.getCommonName(cert), policyIdentifier.toString()));
         X509CertificateHolder certHolder = new JcaX509CertificateHolder(cert);
         CertificatePolicies certificatePolicies = CertificatePolicies.fromExtensions(certHolder.getExtensions());
         if (certificatePolicies == null) {
@@ -168,6 +197,9 @@ public abstract class CertChecker {
      *                   ExtendedKeyUsage extension found
      */
     protected boolean checkExtendedKeyUsage(X509Certificate cert, KeyPurposeId keyPurposeId) throws Exception {
+        LOGGER.info(String.format(
+                "Checking '%s' certificate has extended key usage with OID: %s from ExtendedKeyUsage extension",
+                Common.getCommonName(cert), keyPurposeId.toString()));
         X509CertificateHolder certHolder = new JcaX509CertificateHolder(cert);
         ExtendedKeyUsage extendedKeyUsage = ExtendedKeyUsage.fromExtensions(certHolder.getExtensions());
         if (extendedKeyUsage == null) {
@@ -185,6 +217,9 @@ public abstract class CertChecker {
      *                   ClusterNodeEnrollmentPolicy extension found
      */
     protected ClusterNodeEnrollmentPolicy getClusterNodeEnrollmentPolicy(X509Certificate cert) throws Exception {
+        LOGGER.info(String.format(
+                "Getting '%s' certificate's ClusterNodeEnrollmentPolicy extension (OID: %s)",
+                Common.getCommonName(cert), Common.CLUSTER_NODE_ENROLLMENT_POLICY_OID));
         X509CertificateHolder certHolder = new JcaX509CertificateHolder(cert);
         ClusterNodeEnrollmentPolicy clusterNodeEnrollmentPolicy = ClusterNodeEnrollmentPolicy
                 .fromExtensions(certHolder.getExtensions());

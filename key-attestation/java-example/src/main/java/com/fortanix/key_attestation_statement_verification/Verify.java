@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
@@ -28,6 +29,7 @@ import com.fortanix.key_attestation_statement_verification.certchecker.KeyAttest
 import com.fortanix.key_attestation_statement_verification.certchecker.KeyAttestationStatementCertChecker;
 
 public final class Verify {
+    private static final Logger LOGGER = Logger.getLogger(Verify.class.getName());
 
     static {
         Security.addProvider(new BouncyCastleProvider());
@@ -48,6 +50,7 @@ public final class Verify {
             X509Certificate trustRootCa, boolean verifyCrl) throws Exception {
         checkAuthorityChainLength(authorityChain);
 
+        LOGGER.info("Checking if root certificate in `authorityChain` matches given trusted root certificate");
         check_root_cert_match(authorityChain.get(authorityChain.size() - 1), trustRootCa);
         // verify each signature on authority certificate chain is correctly signed by
         // it's parent
@@ -58,6 +61,8 @@ public final class Verify {
             throw new KeyAttestationStatementVerifyException(
                     "The signature in 'Fortanix DSM Key Attestation' certificate is valid, " + e.toString());
         }
+        LOGGER.info(String.format("Checking if '%s' certificate is correctly signed by '%s' certificate",
+                Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, Common.KEY_ATTESTATION_STATEMENT_CN));
         // because 'Fortanix DSM SaaS Key Attestation Authority' is not a CA
         // certificate, so we need to manually check 'Fortanix DSM Key Attestation' is
         // correctly singed by 'Fortanix DSM SaaS Key Attestation Authority' certificate
@@ -90,6 +95,7 @@ public final class Verify {
     public static void verify_cert_chain_signature(List<X509Certificate> chain, X509Certificate trust_ca,
             boolean verifyCrl)
             throws Exception {
+        LOGGER.info("Checking if root certificate in `authorityChain` matches given trusted root certificate");
         if (chain.isEmpty()) {
             throw new KeyAttestationStatementVerifyException("Empty certificate chain");
         }
@@ -125,6 +131,8 @@ public final class Verify {
      */
     public static void check_root_cert_match(X509Certificate root_cert, X509Certificate trust_ca) throws Exception {
         if (!root_cert.equals(trust_ca)) {
+            LOGGER.warning("Actual root cert:\n" + root_cert.toString());
+            LOGGER.warning("Expected root cert:\n" + trust_ca.toString());
             throw new KeyAttestationStatementVerifyException(
                     "Root CA certificate in chain does not match trust ca certificate");
         }
@@ -139,6 +147,7 @@ public final class Verify {
      * @throws Exception
      */
     public static List<X509Certificate> readPemCertsFromPath(String pemFilePath) throws Exception {
+        LOGGER.info(String.format("Reading PEM certificates from %s ...", pemFilePath));
         Reader reader = new FileReader(pemFilePath);
         return readPemCertsFromReader(reader);
     }
@@ -151,6 +160,7 @@ public final class Verify {
      * @throws Exception
      */
     public static List<X509Certificate> readPemCertsFromReader(Reader reader) throws Exception {
+        LOGGER.info(String.format("Reading PEM certificates from %s ...", reader.toString()));
         List<X509CertificateHolder> certChain = new ArrayList<>();
         try (PEMParser pemParser = new PEMParser(reader)) {
             Object object = pemParser.readObject();
@@ -185,12 +195,15 @@ public final class Verify {
      */
     public static List<X509Certificate> convertX509CertificateHolders(List<X509CertificateHolder> cert_chain)
             throws Exception {
+        LOGGER.info("Converting List<X509CertificateHolder> to List<X509Certificate> ...");
         // Convert X509CertificateHolder to Certificate for CertPath
         JcaX509CertificateConverter converter = new JcaX509CertificateConverter()
                 .setProvider(BouncyCastleProvider.PROVIDER_NAME);
         List<X509Certificate> chain = new ArrayList<>();
         for (X509CertificateHolder holder : cert_chain) {
-            chain.add(converter.getCertificate(holder));
+            X509Certificate cert = converter.getCertificate(holder);
+            LOGGER.fine("Converted cert:\n" + cert.toString());
+            chain.add(cert);
         }
         return chain;
     }
@@ -203,7 +216,10 @@ public final class Verify {
      */
     private static void checkAuthorityChainLength(List<X509Certificate> authorityCertChain)
             throws KeyAttestationStatementVerifyException {
-        if (authorityCertChain.size() != Common.VALID_AUTHORITY_CERT_CHAIN_NUM) {
+        int authorityCertChainSize = authorityCertChain.size();
+        LOGGER.info(String.format("Checking authorityCertChain size: %d == %d ?", authorityCertChainSize,
+                Common.VALID_AUTHORITY_CERT_CHAIN_NUM));
+        if (authorityCertChainSize != Common.VALID_AUTHORITY_CERT_CHAIN_NUM) {
             throw new KeyAttestationStatementVerifyException(
                     String.format(
                             "A valid authority certificates chain should contain %d certificate",
@@ -219,7 +235,7 @@ public final class Verify {
      * @param parent The certificate of issuer
      * @throws Exception
      */
-    public static void verify_cert_chain_signature(X509Certificate child, X509Certificate parent)
+    public static void verify_cert_signature(X509Certificate child, X509Certificate parent)
             throws Exception {
         PublicKey parentPublicKey = parent.getPublicKey();
         child.verify(parentPublicKey);

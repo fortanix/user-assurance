@@ -14,6 +14,7 @@ import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 
 public class Common {
     public static final String FORTANIX_PKI_DOMAIN = "pki.fortanix.com";
@@ -230,4 +231,14 @@ public class Common {
         return certs.get(0);
     }
 
+    /**
+     * Helper function to get CN string from a certificate
+     * @param cert Source certificate
+     * @return Common Name (CN) of the given certificate
+     * @throws Exception
+     */
+    public static String getCommonName(X509Certificate cert) throws Exception {
+        X500Name x500name = new JcaX509CertificateHolder(cert).getSubject();
+        return x500name.getRDNs(BCStyle.CN)[0].getFirst().getValue().toString();
+    }
 }
