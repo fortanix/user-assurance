@@ -81,7 +81,7 @@ public final class Verify {
         checkAuthorityChainLength(authorityChain);
 
         LOGGER.info(String.format("Checking if '%s' certificate is correctly signed by '%s' certificate",
-                Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, Common.KEY_ATTESTATION_STATEMENT_CN));
+                Common.KEY_ATTESTATION_STATEMENT_CN, Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN));
         // because 'Fortanix DSM SaaS Key Attestation Authority' is not a CA
         // certificate, so we need to manually check 'Fortanix DSM Key Attestation' is
         // correctly singed by 'Fortanix DSM SaaS Key Attestation Authority' certificate
