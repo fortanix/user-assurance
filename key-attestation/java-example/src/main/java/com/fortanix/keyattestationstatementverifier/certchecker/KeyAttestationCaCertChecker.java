@@ -62,7 +62,7 @@ public class KeyAttestationCaCertChecker extends CertChecker {
         PublicKey caPk = cert.getPublicKey();
         if (caPk instanceof RSAPublicKey) {
             RSAPublicKey caRsaPk = (RSAPublicKey) caPk;
-            assert (caRsaPk.getModulus().bitLength() >= 3072);
+            assert (caRsaPk.getModulus().bitLength() >= 4096);
         } else {
             throw new KeyAttestationStatementVerifyException(
                     Common.FORTANIX_KEY_ATTESTATION_CA_CN + " certificate invalid public key type");

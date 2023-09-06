@@ -69,7 +69,7 @@ public final class Verify {
     /**
      * Verify given `attestationStatement`, `authorityChain` by using `trustRootCa`
      *
-     * @param authorityChain       Certificate chain of all certificates expect
+     * @param authorityChain       Certificate chain of all certificates except
      *                             `Fortanix Key Attestation Statement` certificate
      * @param attestationStatement `Fortanix Key Attestation Statement` certificate
      * @param trustRootCa          Trusted root CA, you need to get the certificate
@@ -87,10 +87,10 @@ public final class Verify {
         // it's parent
         try {
             verify_cert_chain_signature(authorityChain, trustRootCa, verifyCrl);
-            System.out.println("The signature in 'Fortanix DSM Key Attestation' certificate is valid.");
+            System.out.println("The signature in 'Fortanix DSM Key Attestation' certificate is invalid.");
         } catch (Exception e) {
             throw new KeyAttestationStatementVerifyException(
-                    "The signature in 'Fortanix DSM Key Attestation' certificate is valid, " + e.toString());
+                    "The signature in 'Fortanix DSM Key Attestation' certificate is invalid, " + e.toString());
         }
         LOGGER.info(String.format("Checking if '%s' certificate is correctly signed by '%s' certificate",
                 Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, Common.KEY_ATTESTATION_STATEMENT_CN));

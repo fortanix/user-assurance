@@ -95,19 +95,15 @@ public class Common {
         if (!c.isEmpty()) {
             builder.addRDN(BCStyle.C, c);
         }
-        ;
         if (!st.isEmpty()) {
             builder.addRDN(BCStyle.ST, st);
         }
-        ;
         if (!l.isEmpty()) {
             builder.addRDN(BCStyle.L, l);
         }
-        ;
         if (!o.isEmpty()) {
             builder.addRDN(BCStyle.O, o);
         }
-        ;
         builder.addRDN(BCStyle.CN, cn);
 
         return builder.build();
@@ -174,10 +170,10 @@ public class Common {
     public static void isValidCrlUrl(String urlString) throws Exception {
         URL url = new URL(urlString);
         if (!url.getProtocol().equals("https")) {
-            throw new KeyAttestationStatementVerifyException("invalid CRL URL: invalid domain");
+            throw new KeyAttestationStatementVerifyException("invalid CRL URL: should be https");
         }
         if (!url.getHost().equalsIgnoreCase(FORTANIX_PKI_DOMAIN)) {
-            throw new KeyAttestationStatementVerifyException("invalid CRL URL: should be https");
+            throw new KeyAttestationStatementVerifyException("invalid CRL URL: invalid domain");
         }
         if (!url.getPath().endsWith(".crl")) {
             throw new KeyAttestationStatementVerifyException("invalid CRL URL: should be end with '.crl'");

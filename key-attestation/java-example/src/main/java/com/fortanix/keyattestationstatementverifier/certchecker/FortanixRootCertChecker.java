@@ -59,7 +59,7 @@ public class FortanixRootCertChecker extends CertChecker {
         PublicKey rootPk = cert.getPublicKey();
         if (rootPk instanceof RSAPublicKey) {
             RSAPublicKey rootRsaPk = (RSAPublicKey) rootPk;
-            assert (rootRsaPk.getModulus().bitLength() >= 3072);
+            assert (rootRsaPk.getModulus().bitLength() >= 4096);
         } else {
             throw new KeyAttestationStatementVerifyException(
                     Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CN
