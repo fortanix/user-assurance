@@ -1,8 +1,6 @@
 package com.fortanix.keyattestationstatementverifier.certchecker;
 
-import java.security.PublicKey;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPublicKey;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -30,9 +28,7 @@ public class KeyAttestationStatementCertChecker extends CertChecker {
         LOGGER.info(String.format(
                 "Checking '%s' certificate's Subject & Issuer", certCN));
         check_subject_and_issuer(cert);
-        LOGGER.info(String.format(
-                "Checking '%s' certificate's Public key length & type", certCN));
-        check_public_key(cert);
+
         LOGGER.info(String.format(
                 "Checking '%s' certificate's extensions", certCN));
         check_extensions(cert, issuerCert);
@@ -47,26 +43,14 @@ public class KeyAttestationStatementCertChecker extends CertChecker {
                     Common.KEY_ATTESTATION_STATEMENT_CN + " certificate subject is invalid " +
                             statementCertSubject.toString());
         }
-        // check issuer
 
+        // check issuer
         X500Name statementCertIssuer = statementCert.getIssuer();
         if (!Common.checkNameMatch(statementCertIssuer, Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_NAME)) {
             throw new KeyAttestationStatementVerifyException(
                     Common.KEY_ATTESTATION_STATEMENT_CN + " certificate issuer is invalid "
                             + statementCertIssuer.toString());
         }
-    }
-
-    private void check_public_key(X509Certificate cert) throws Exception {
-        PublicKey statementPk = cert.getPublicKey();
-        if (statementPk instanceof RSAPublicKey) {
-            RSAPublicKey statementRsaPk = (RSAPublicKey) statementPk;
-            assert (statementRsaPk.getModulus().bitLength() >= 2048);
-        } else {
-            throw new KeyAttestationStatementVerifyException(
-                    Common.KEY_ATTESTATION_STATEMENT_CN + " certificate invalid public key type");
-        }
-
     }
 
     private void check_extensions(X509Certificate cert, X509Certificate issuerCert) throws Exception {
