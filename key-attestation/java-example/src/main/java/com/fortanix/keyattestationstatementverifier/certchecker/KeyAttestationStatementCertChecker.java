@@ -109,5 +109,4 @@ public class KeyAttestationStatementCertChecker extends CertChecker {
                     Common.KEY_ATTESTATION_STATEMENT_CN + " invalid keyUsage extension");
         }
     }
-
 }

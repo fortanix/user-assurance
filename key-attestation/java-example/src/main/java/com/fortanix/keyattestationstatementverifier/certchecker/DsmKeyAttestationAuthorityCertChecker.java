@@ -140,7 +140,7 @@ public class DsmKeyAttestationAuthorityCertChecker extends CertChecker {
                     "%s certificate 'Cluster node enrollment policy' extension policy item 'Node enrollment policy item: Minimum protection profile' should contain qualifier: 'Well-known protection profile: Fortanix FX2200' (%s), but get: %s",
                     Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN,
                     Common.NODE_ENROLLMENT_POLICY_ITEM_WELL_KNOWN_PROTECTION_PROFILE_FORTANIX_FX2200_OID,
-                    policyItem1.getId()));
+                    policyItem1Qualifier.getId()));
         }
         ASN1ObjectIdentifier policyItem2 = nodeEnrollmentPolicyItem[1].getPolicyItem();
         if (!policyItem2.getId().equals(Common.NODE_ENROLLMENT_POLICY_ITEM_SITE_OPERATOR_APPROVAL_REQUIRED_OID)) {
@@ -148,7 +148,7 @@ public class DsmKeyAttestationAuthorityCertChecker extends CertChecker {
                     "%s certificate 'Cluster node enrollment policy' extension should contain policy item 'Node enrollment policy item: Site operator approval required' (%s), but get: %s",
                     Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN,
                     Common.NODE_ENROLLMENT_POLICY_ITEM_SITE_OPERATOR_APPROVAL_REQUIRED_OID,
-                    policyItem1.getId()));
+                    policyItem2.getId()));
         }
     }
 

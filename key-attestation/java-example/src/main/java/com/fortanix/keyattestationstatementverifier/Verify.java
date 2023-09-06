@@ -10,7 +10,6 @@ import com.fortanix.keyattestationstatementverifier.types.json.KeyAttestationRes
 import java.io.ByteArrayInputStream;
 import java.io.FileReader;
 import java.io.Reader;
-import java.io.StringReader;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.cert.CertPath;
@@ -61,7 +60,7 @@ public final class Verify {
         LOGGER.info(
                 String.format("Decoding Attestation Statement Certificate: %s", attestationStatementStr.toString()));
         X509Certificate attestationStatementCert = readBase64EncodedCertificate(attestationStatementStr);
-        LOGGER.info(String.format("Decoding Attestation Statement Certificate: %s", authorityChain.toString()));
+        LOGGER.info(String.format("Decoding Authority Chain: %s", authorityChain.toString()));
         List<X509Certificate> authorityChainCerts = readBase64EncodedCertificates(authorityChain);
         verify(authorityChainCerts, attestationStatementCert, trustRootCa, verifyCrl);
     }
@@ -81,23 +80,23 @@ public final class Verify {
             X509Certificate trustRootCa, boolean verifyCrl) throws Exception {
         checkAuthorityChainLength(authorityChain);
 
-        LOGGER.info("Checking if root certificate in `authorityChain` matches given trusted root certificate");
-        check_root_cert_match(authorityChain.get(authorityChain.size() - 1), trustRootCa);
-        // verify each signature on authority certificate chain is correctly signed by
-        // it's parent
-        try {
-            verify_cert_chain_signature(authorityChain, trustRootCa, verifyCrl);
-            System.out.println("The signature in 'Fortanix DSM Key Attestation' certificate is invalid.");
-        } catch (Exception e) {
-            throw new KeyAttestationStatementVerifyException(
-                    "The signature in 'Fortanix DSM Key Attestation' certificate is invalid, " + e.toString());
-        }
         LOGGER.info(String.format("Checking if '%s' certificate is correctly signed by '%s' certificate",
                 Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, Common.KEY_ATTESTATION_STATEMENT_CN));
         // because 'Fortanix DSM SaaS Key Attestation Authority' is not a CA
         // certificate, so we need to manually check 'Fortanix DSM Key Attestation' is
         // correctly singed by 'Fortanix DSM SaaS Key Attestation Authority' certificate
         verify_cert_signature(attestationStatement, authorityChain.get(0));
+
+        LOGGER.info("Checking if root certificate in `authorityChain` matches given trusted root certificate");
+        check_root_cert_match(authorityChain.get(authorityChain.size() - 1), trustRootCa);
+        // verify each signature on authority certificate chain is correctly signed by
+        // it's parent
+        try {
+            verify_cert_chain_signature(authorityChain, trustRootCa, verifyCrl);
+        } catch (Exception e) {
+            throw new KeyAttestationStatementVerifyException(
+                    "The signature in 'Fortanix DSM Key Attestation' certificate is invalid, " + e.toString());
+        }
 
         CertChecker statementChecker = new KeyAttestationStatementCertChecker();
         CertChecker authorityChecker = new DsmKeyAttestationAuthorityCertChecker();
