@@ -12,7 +12,8 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 
 import com.fortanix.keyattestationstatementverifier.Common;
 import com.fortanix.keyattestationstatementverifier.KeyAttestationStatementVerifyException;
-import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsage;
+import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsageExt;
+import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsageExt.KeyUsage;
 
 public class KeyAttestationStatementCertChecker extends CertChecker {
     private static final Logger LOGGER = Logger.getLogger(KeyAttestationStatementCertChecker.class.getName());
@@ -57,7 +58,7 @@ public class KeyAttestationStatementCertChecker extends CertChecker {
         checkCertKeyUsages(cert);
         // check extension: Authority Key Identifier
         LOGGER.info(String.format(
-            "Checking '%s' certificate's AuthorityKeyIdentifier extension", certCN));
+                "Checking '%s' certificate's AuthorityKeyIdentifier extension", certCN));
         if (!Arrays.equals(getExtAkiVal(cert), getExtSkiVal(issuerCert))) {
             throw new KeyAttestationStatementVerifyException(
                     Common.KEY_ATTESTATION_STATEMENT_CN
@@ -68,29 +69,24 @@ public class KeyAttestationStatementCertChecker extends CertChecker {
     private void checkCertKeyUsages(X509Certificate cert) throws KeyAttestationStatementVerifyException {
         LOGGER.info(String.format(
                 "Checking '%s' certificate's KeyUsages extension", certCN));
-        boolean[] certKeyUsagesBooleans = cert.getKeyUsage();
-        if (certKeyUsagesBooleans != null && certKeyUsagesBooleans.length == 9) {
-            KeyUsage[] allowedKeyUsages = {
-                    KeyUsage.DIGITAL_SIGNATURE,
-                    KeyUsage.KEY_ENCIPHERMENT,
-                    KeyUsage.DATA_ENCIPHERMENT,
-                    KeyUsage.KEY_AGREEMENT,
-            };
-            Set<KeyUsage> allowedKeyUsagesSet = Arrays.stream(allowedKeyUsages).collect(Collectors.toSet());
+        KeyUsageExt keyUsageExt = new KeyUsageExt(cert.getKeyUsage());
+        KeyUsage[] allowedKeyUsages = {
+                KeyUsage.DIGITAL_SIGNATURE,
+                KeyUsage.KEY_ENCIPHERMENT,
+                KeyUsage.DATA_ENCIPHERMENT,
+                KeyUsage.KEY_AGREEMENT,
+        };
+        Set<KeyUsage> allowedKeyUsagesSet = Arrays.stream(allowedKeyUsages).collect(Collectors.toSet());
 
-            KeyUsage[] disallowedKeyUsages = Arrays.stream(KeyUsage.values())
-                    .filter(keyUsage -> !allowedKeyUsagesSet.contains(keyUsage))
-                    .toArray(KeyUsage[]::new);
-            for (KeyUsage ku : disallowedKeyUsages) {
-                if (certKeyUsagesBooleans[ku.getBitIndex()]) {
-                    throw new KeyAttestationStatementVerifyException(
-                            Common.KEY_ATTESTATION_STATEMENT_CN + " keyUsage extension should not contain: "
-                                    + ku.toString());
-                }
+        KeyUsage[] disallowedKeyUsages = Arrays.stream(KeyUsage.values())
+                .filter(keyUsage -> !allowedKeyUsagesSet.contains(keyUsage))
+                .toArray(KeyUsage[]::new);
+        for (KeyUsage ku : disallowedKeyUsages) {
+            if (keyUsageExt.hasUsage(ku)) {
+                throw new KeyAttestationStatementVerifyException(
+                        Common.KEY_ATTESTATION_STATEMENT_CN + " keyUsage extension should not contain: "
+                                + ku.toString());
             }
-        } else {
-            throw new KeyAttestationStatementVerifyException(
-                    Common.KEY_ATTESTATION_STATEMENT_CN + " invalid keyUsage extension");
         }
     }
 }

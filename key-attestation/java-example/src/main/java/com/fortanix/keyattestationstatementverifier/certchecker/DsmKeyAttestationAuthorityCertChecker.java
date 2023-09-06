@@ -15,8 +15,9 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import com.fortanix.keyattestationstatementverifier.Common;
 import com.fortanix.keyattestationstatementverifier.KeyAttestationStatementVerifyException;
 import com.fortanix.keyattestationstatementverifier.types.asn1.ClusterNodeEnrollmentPolicy;
-import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsage;
+import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsageExt;
 import com.fortanix.keyattestationstatementverifier.types.asn1.NodeEnrollmentPolicyItem;
+import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsageExt.KeyUsage;
 
 public class DsmKeyAttestationAuthorityCertChecker extends CertChecker {
     private static final Logger LOGGER = Logger.getLogger(DsmKeyAttestationAuthorityCertChecker.class.getName());
@@ -76,8 +77,13 @@ public class DsmKeyAttestationAuthorityCertChecker extends CertChecker {
         LOGGER.info(String.format(
                 "Checking '%s' certificate's KeyUsages extension", certCN));
         KeyUsage[] authorityCertExpectedKeyUsage = { KeyUsage.DIGITAL_SIGNATURE };
-        KeyUsage.checkKeyUsageHelper(Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN, cert.getKeyUsage(),
-                authorityCertExpectedKeyUsage);
+        KeyUsageExt keyUsageExt = new KeyUsageExt(cert.getKeyUsage());
+        if (!keyUsageExt.hasUsage(authorityCertExpectedKeyUsage)) {
+            throw new KeyAttestationStatementVerifyException(
+                    Common.DSM_CLUSTER_KEY_ATTESTATION_AUTHORITY_CN
+                            + " certificate keyUsage extension should contains: "
+                            + authorityCertExpectedKeyUsage.toString());
+        }
         // check extension: Basic Constraints
         LOGGER.info(String.format(
                 "Checking '%s' certificate's BasicConstraints extension", certCN));

@@ -11,7 +11,8 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 
 import com.fortanix.keyattestationstatementverifier.Common;
 import com.fortanix.keyattestationstatementverifier.KeyAttestationStatementVerifyException;
-import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsage;
+import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsageExt;
+import com.fortanix.keyattestationstatementverifier.types.asn1.KeyUsageExt.KeyUsage;
 
 public class FortanixRootCertChecker extends CertChecker {
     private static final Logger LOGGER = Logger.getLogger(FortanixRootCertChecker.class.getName());
@@ -72,8 +73,13 @@ public class FortanixRootCertChecker extends CertChecker {
         LOGGER.info(String.format(
                 "Checking '%s' certificate's KeyUsages extension", certCN));
         KeyUsage[] rootCertExpectedKeyUsage = { KeyUsage.DIGITAL_SIGNATURE, KeyUsage.KEY_CERT_SIGN, KeyUsage.CRL_SIGN };
-        KeyUsage.checkKeyUsageHelper(Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CN, cert.getKeyUsage(),
-                rootCertExpectedKeyUsage);
+        KeyUsageExt keyUsageExt = new KeyUsageExt(cert.getKeyUsage());
+        if (!keyUsageExt.hasUsage(rootCertExpectedKeyUsage)) {
+            throw new KeyAttestationStatementVerifyException(
+                    Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CN
+                            + " certificate keyUsage extension should contains: "
+                            + rootCertExpectedKeyUsage.toString());
+        }
         int pathLenConstraint = cert.getBasicConstraints();
         // check extension: Basic Constraints
         LOGGER.info(String.format(
