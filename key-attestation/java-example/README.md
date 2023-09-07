@@ -20,10 +20,3 @@ Online check
 
 Offline check
 - `verifyStatementFromJsonWithoutCrlCheck`: Verify given `KeyAttestationResponse` in a JSON file, assuming the last certificate in authority chain is correct ROOT certificate and skipping CRL checks.
-
-# License
-
-This project is primarily distributed under the terms of the Apache License
-version 2.0 and the GNU General Public License version 2, see
-[LICENSE-APACHE](./LICENSE-APACHE) and [LICENSE-GPL](./LICENSE-GPL) for
-details.
