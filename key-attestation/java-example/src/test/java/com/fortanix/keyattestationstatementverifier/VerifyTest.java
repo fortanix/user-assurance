@@ -119,29 +119,30 @@ public class VerifyTest {
      */
     @Test
     public void verifyStatementFullCheckOnlineAMER() throws Exception {
+        // Because here we use an APP API key so we could skip many steps: select an account / create a group
         String appApiKeyString = System.getenv(JAVA_CI_AMER_APP_API_KEY);
         String authString = "Basic " + appApiKeyString;
-        // create a key
+        // Create a RSA key
         String generateKeyUrl = FORTANIX_AMER_SAAS_SERVER_URL + "/crypto/v1/keys";
         String newRsaKeyName = UUID.randomUUID().toString();
         String generateKeyRequest = String.format(
                 "{\"name\":\"%s\",\"description\":\"\",\"obj_type\":\"RSA\",\"key_ops\":[\"APPMANAGEABLE\",\"SIGN\",\"VERIFY\"],\"key_size\":2048,\"pub_exponent\":65537,\"expirationDate\":null,\"enabled\":true,\"rsa\":{\"encryption_policy\":[{\"padding\":{\"OAEP\":{\"mgf\":{\"mgf1\":{}}}}}],\"signature_policy\":[{\"padding\":{\"PKCS1_V15\":{}}},{\"padding\":{\"PSS\":{\"mgf\":{\"mgf1\":{}}}}}]}}",
                 newRsaKeyName);
         System.out.println(
-                String.format("Creating a new RSA key named '$s' through %s ...", newRsaKeyName, generateKeyUrl));
+                String.format("Creating a new RSA key named '%s' through %s ...", newRsaKeyName, generateKeyUrl));
         String generateKeyResponseString = sendHttpRequest(generateKeyUrl, "POST", generateKeyRequest, authString);
         ObjectMapper keyObjectMapper = new ObjectMapper();
         JsonNode jsonNode = keyObjectMapper.readTree(generateKeyResponseString);
         String keyId = jsonNode.get("kid").asText();
-        System.out.println(String.format("Created a new RSA key named '$s' with key id: %s", newRsaKeyName, keyId));
+        System.out.println(String.format("Created a new RSA key named '%s' with key id: %s", newRsaKeyName, keyId));
 
         String getKeyAttestationUrl = FORTANIX_AMER_SAAS_SERVER_URL + "/crypto/v1/keys/key_attestation";
         String getKeyAttestationRequest = String.format("{\"key\":{\"kid\":\"%s\"}}", keyId);
-        System.out.println(String.format("Getting key attestation statement through $s ...", getKeyAttestationUrl));
+        System.out.println(String.format("Getting key attestation statement through %s ...", getKeyAttestationUrl));
         String keyAttestationResponseString = sendHttpRequest(getKeyAttestationUrl, "POST", getKeyAttestationRequest, authString);
         System.out.println(String.format("Got key attestation statement"));
 
-        // get the the key attestation statement of the key just created
+        // Get the the key attestation statement of the key just created
         ObjectMapper attestationObjectMapper = new ObjectMapper();
         KeyAttestationResponse decodedResponse = attestationObjectMapper.readValue(keyAttestationResponseString, KeyAttestationResponse.class);
 
