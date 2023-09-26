@@ -154,8 +154,10 @@ public final class Verify {
                 PKIXRevocationChecker.Option.NO_FALLBACK)); // don't fall back to OCSP checking
 
         PKIXBuilderParameters pkixParams = new PKIXBuilderParameters(trustAnchors, new X509CertSelector());
-        pkixParams.addCertPathChecker(rc);
         pkixParams.setRevocationEnabled(verifyCrl);
+        if (verifyCrl){
+            pkixParams.addCertPathChecker(rc);
+        }
 
         // Validate CertPath
         CertPathValidator validator = CertPathValidator.getInstance("PKIX");

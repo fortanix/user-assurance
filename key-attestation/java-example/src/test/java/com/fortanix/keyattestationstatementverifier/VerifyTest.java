@@ -14,7 +14,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.List;
