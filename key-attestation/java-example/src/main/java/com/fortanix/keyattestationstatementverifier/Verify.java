@@ -13,15 +13,20 @@ import java.io.Reader;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.cert.CertPath;
+import java.security.cert.CertPathBuilder;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.PKIXBuilderParameters;
 import java.security.cert.PKIXParameters;
+import java.security.cert.PKIXRevocationChecker;
 import java.security.cert.TrustAnchor;
+import java.security.cert.X509CertSelector;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -52,7 +57,7 @@ public final class Verify {
      */
     public static void verify(KeyAttestationResponse keyAttestationResponse,
             X509Certificate trustRootCa, boolean verifyCrl) throws Exception {
-        LOGGER.info(String.format("Verifying KeyAttestationResponse: %s", keyAttestationResponse.toString()));
+        LOGGER.info("Verifying KeyAttestationResponse ...");
         // skip verifying attestationStatement.format since it's been covered by json
         // decoding
         String attestationStatementStr = keyAttestationResponse.getAttestationStatement().getStatement();
@@ -86,9 +91,11 @@ public final class Verify {
         // certificate, so we need to manually check 'Fortanix DSM Key Attestation' is
         // correctly singed by 'Fortanix DSM SaaS Key Attestation Authority' certificate
         verify_cert_signature(attestationStatement, authorityChain.get(0));
+        LOGGER.info("DONE");
 
         LOGGER.info("Checking if root certificate in `authorityChain` matches given trusted root certificate");
         check_root_cert_match(authorityChain.get(authorityChain.size() - 1), trustRootCa);
+        LOGGER.info("DONE");
         // verify each signature on authority certificate chain is correctly signed by
         // it's parent
         try {
@@ -125,30 +132,40 @@ public final class Verify {
     public static void verify_cert_chain_signature(List<X509Certificate> chain, X509Certificate trust_ca,
             boolean verifyCrl)
             throws Exception {
-        LOGGER.info("Checking if root certificate in `authorityChain` matches given trusted root certificate");
+        LOGGER.info("Checking `authorityChain` signatures");
         if (chain.isEmpty()) {
             throw new KeyAttestationStatementVerifyException("Empty certificate chain");
         }
         // Create CertPath
         CertificateFactory factory = CertificateFactory.getInstance("X.509", "BC");
-        CertPath certPath = factory.generateCertPath(chain);
+        // Because root CA does not contain CRL distribution point extension,
+        // CertPathValidator will throw error when CRL revocation check is enabled.
+        // As a result, root CA need to be removed from cert chain.
+        CertPath certPath = factory.generateCertPath(chain.subList(0, chain.size() - 1));
 
         // Set up TrustAnchor using the last certificate as the root certificate
         TrustAnchor trustAnchor = new TrustAnchor(trust_ca, null);
         Set<TrustAnchor> trustAnchors = Collections.singleton(trustAnchor);
 
-        // Set up PKIXParameters
-        PKIXParameters params = new PKIXParameters(trustAnchors);
-        params.setRevocationEnabled(verifyCrl);
+        CertPathBuilder cpb = CertPathBuilder.getInstance("PKIX");
+        PKIXRevocationChecker rc = (PKIXRevocationChecker) cpb.getRevocationChecker();
+        rc.setOptions(EnumSet.of(
+                PKIXRevocationChecker.Option.PREFER_CRLS, // prefer CLR over OCSP
+                PKIXRevocationChecker.Option.NO_FALLBACK)); // don't fall back to OCSP checking
+
+        PKIXBuilderParameters pkixParams = new PKIXBuilderParameters(trustAnchors, new X509CertSelector());
+        pkixParams.addCertPathChecker(rc);
+        pkixParams.setRevocationEnabled(verifyCrl);
 
         // Validate CertPath
-        CertPathValidator validator = CertPathValidator.getInstance("PKIX", "BC");
+        CertPathValidator validator = CertPathValidator.getInstance("PKIX");
         try {
-            validator.validate(certPath, params);
+            validator.validate(certPath, pkixParams);
         } catch (CertPathValidatorException e) {
             // Handle validation exception
             throw new KeyAttestationStatementVerifyException("Certificate chain validation failed" + e.toString());
         }
+        LOGGER.info("DONE");
     }
 
     /**

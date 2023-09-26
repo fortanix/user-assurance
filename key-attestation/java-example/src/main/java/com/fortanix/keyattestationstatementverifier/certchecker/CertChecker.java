@@ -80,6 +80,7 @@ public abstract class CertChecker {
                     errStrPrefix
                             + " certificate cRLDistributionPoints extension wrong Name");
         }
+        LOGGER.info("DONE");
     }
 
     /**

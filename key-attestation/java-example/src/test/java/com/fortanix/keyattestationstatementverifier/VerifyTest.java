@@ -3,18 +3,28 @@ package com.fortanix.keyattestationstatementverifier;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fortanix.keyattestationstatementverifier.types.json.KeyAttestationResponse;
 
 import static org.junit.Assert.*;
 
+import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.List;
+import java.util.UUID;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class VerifyTest {
+    private static final String FORTANIX_AMER_SAAS_SERVER_URL = "https://amer.smartkey.io";
+    private static final String JAVA_CI_AMER_APP_API_KEY = "AMER_APP_API_KEY";
     private static final String VALID_STATEMENT_CERT_PEM = "key-attestation-statement.pem";
     private static final String VALID_RESPONSE_JSON = "key-attestation-response.json";
 
@@ -88,7 +98,7 @@ public class VerifyTest {
      */
     @Ignore
     @Test
-    public void verifyStatementFullCheck() throws Exception {
+    public void verifyStatementFullCheckExample() throws Exception {
         String jsonPath = "Path to the KeyAttestationResponse json file";
         Reader reader = new FileReader(jsonPath);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -100,5 +110,88 @@ public class VerifyTest {
                 Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CERT_URL);
 
         Verify.verify(decodedResponse, trustedRootCert, true);
+    }
+
+    /**
+     * This test tests the full process of creating a RSA key, get RSA key's key
+     * attestation statement and finally verify it.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void verifyStatementFullCheckOnlineAMER() throws Exception {
+        String appApiKeyString = System.getenv(JAVA_CI_AMER_APP_API_KEY);
+        String authString = "Basic " + appApiKeyString;
+        // create a key
+        String generateKeyUrl = FORTANIX_AMER_SAAS_SERVER_URL + "/crypto/v1/keys";
+        String newRsaKeyName = UUID.randomUUID().toString();
+        String generateKeyRequest = String.format(
+                "{\"name\":\"%s\",\"description\":\"\",\"obj_type\":\"RSA\",\"key_ops\":[\"APPMANAGEABLE\",\"SIGN\",\"VERIFY\"],\"key_size\":2048,\"pub_exponent\":65537,\"expirationDate\":null,\"enabled\":true,\"rsa\":{\"encryption_policy\":[{\"padding\":{\"OAEP\":{\"mgf\":{\"mgf1\":{}}}}}],\"signature_policy\":[{\"padding\":{\"PKCS1_V15\":{}}},{\"padding\":{\"PSS\":{\"mgf\":{\"mgf1\":{}}}}}]}}",
+                newRsaKeyName);
+        System.out.println(
+                String.format("Creating a new RSA key named '$s' through %s ...", newRsaKeyName, generateKeyUrl));
+        String generateKeyResponseString = sendHttpRequest(generateKeyUrl, "POST", generateKeyRequest, authString);
+        ObjectMapper keyObjectMapper = new ObjectMapper();
+        JsonNode jsonNode = keyObjectMapper.readTree(generateKeyResponseString);
+        String keyId = jsonNode.get("kid").asText();
+        System.out.println(String.format("Created a new RSA key named '$s' with key id: %s", newRsaKeyName, keyId));
+
+        String getKeyAttestationUrl = FORTANIX_AMER_SAAS_SERVER_URL + "/crypto/v1/keys/key_attestation";
+        String getKeyAttestationRequest = String.format("{\"key\":{\"kid\":\"%s\"}}", keyId);
+        System.out.println(String.format("Getting key attestation statement through $s ...", getKeyAttestationUrl));
+        String keyAttestationResponseString = sendHttpRequest(getKeyAttestationUrl, "POST", getKeyAttestationRequest, authString);
+        System.out.println(String.format("Got key attestation statement"));
+
+        // get the the key attestation statement of the key just created
+        ObjectMapper attestationObjectMapper = new ObjectMapper();
+        KeyAttestationResponse decodedResponse = attestationObjectMapper.readValue(keyAttestationResponseString, KeyAttestationResponse.class);
+
+        System.out.println("Downloading Fortanix Attestation and Provisioning Root CA certificate form: "
+                + Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CERT_URL);
+        X509Certificate trustedRootCert = Common.getFortanixRootCaCertRemote(
+                Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CERT_URL);
+        System.out.println(String.format("Downloaded Fortanix Attestation and Provisioning Root CA"));
+
+        Verify.verify(decodedResponse, trustedRootCert, true);
+    }
+
+    public static String sendHttpRequest(String url, String method, String body, String authorization)
+            throws IOException {
+        URL apiUrl = new URL(url);
+        HttpsURLConnection connection = (HttpsURLConnection) apiUrl.openConnection();
+
+        try {
+            // Set the HTTP method
+            connection.setRequestMethod(method);
+
+            // Set the Authorization header if provided
+            if (authorization != null && !authorization.isEmpty()) {
+                connection.setRequestProperty("Authorization", authorization);
+            }
+
+            // Handle request body if provided
+            if (body != null && !body.isEmpty()) {
+                connection.setDoOutput(true);
+                connection.getOutputStream().write(body.getBytes("UTF-8"));
+            }
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode >= 200 && responseCode < 300) {
+                // Successful response, read and return the response body
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                reader.close();
+                return response.toString();
+            } else {
+                // Non-2XX response, throw an exception
+                throw new IOException("HTTP request failed with response code: " + responseCode);
+            }
+        } finally {
+            connection.disconnect();
+        }
     }
 }
