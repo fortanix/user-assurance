@@ -1,31 +1,43 @@
 package com.fortanix.keyattestationstatementverifier;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fortanix.keyattestationstatementverifier.types.json.KeyAttestationResponse;
 
+import com.fortanix.sdkms.v1.ApiClient;
+import com.fortanix.sdkms.v1.ApiException;
+import com.fortanix.sdkms.v1.Configuration;
+import com.fortanix.sdkms.v1.Pair;
+import com.fortanix.sdkms.v1.api.AuthenticationApi;
+import com.fortanix.sdkms.v1.api.SecurityObjectsApi;
+import com.fortanix.sdkms.v1.auth.ApiKeyAuth;
+import com.fortanix.sdkms.v1.model.AuthResponse;
+import com.fortanix.sdkms.v1.model.KeyObject;
+import com.fortanix.sdkms.v1.model.ObjectType;
+
+import com.fortanix.sdkms.v1.model.SobjectRequest;
+
 import static org.junit.Assert.*;
 
-import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
-import javax.net.ssl.HttpsURLConnection;
+import javax.ws.rs.core.GenericType;
 
 public class VerifyTest {
     private static final String FORTANIX_AMER_SAAS_SERVER_URL = "https://amer.smartkey.io";
     private static final String JAVA_CI_AMER_APP_API_KEY = "AMER_APP_API_KEY";
     private static final String VALID_STATEMENT_CERT_PEM = "key-attestation-statement.pem";
     private static final String VALID_RESPONSE_JSON = "key-attestation-response.json";
+    private static final boolean DEBUG = false;
 
     private URL getTestFileUrl(String fileName) throws Exception {
         URL resUrl = getClass().getClassLoader().getResource(fileName);
@@ -90,108 +102,103 @@ public class VerifyTest {
     }
 
     /**
-     * This test is ignored because it's an example code for showing how to verify a
-     * real 'Fortanix DSM Key Attestation'
-     *
-     * @throws Exception
-     */
-    @Ignore
-    @Test
-    public void verifyStatementFullCheckExample() throws Exception {
-        String jsonPath = "Path to the KeyAttestationResponse json file";
-        Reader reader = new FileReader(jsonPath);
-        ObjectMapper objectMapper = new ObjectMapper();
-        KeyAttestationResponse decodedResponse = objectMapper.readValue(reader, KeyAttestationResponse.class);
-
-        System.out.println("Downloading Fortanix Attestation and Provisioning Root CA certificate form: "
-                + Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CERT_URL);
-        X509Certificate trustedRootCert = Common.getFortanixRootCaCertRemote(
-                Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CERT_URL);
-
-        Verify.verify(decodedResponse, trustedRootCert, true);
-    }
-
-    /**
-     * This test tests the full process of creating a RSA key, get RSA key's key
-     * attestation statement and finally verify it.
+     * This test tests the full process:
+     * 1. Creating a RSA key.
+     * 2. Get RSA key's key attestation statement.
+     * 3. Verify key attestation statement.
      *
      * @throws Exception
      */
     @Test
     public void verifyStatementFullCheckOnlineAMER() throws Exception {
-        // Because here we use an APP API key so we could skip many steps: select an account / create a group
+        // Setup a SDKMS API client
         String appApiKeyString = System.getenv(JAVA_CI_AMER_APP_API_KEY);
-        String authString = "Basic " + appApiKeyString;
-        // Create a RSA key
-        String generateKeyUrl = FORTANIX_AMER_SAAS_SERVER_URL + "/crypto/v1/keys";
-        String newRsaKeyName = UUID.randomUUID().toString();
-        String generateKeyRequest = String.format(
-                "{\"name\":\"%s\",\"description\":\"\",\"obj_type\":\"RSA\",\"key_ops\":[\"APPMANAGEABLE\",\"SIGN\",\"VERIFY\"],\"key_size\":2048,\"pub_exponent\":65537,\"expirationDate\":null,\"enabled\":true,\"rsa\":{\"encryption_policy\":[{\"padding\":{\"OAEP\":{\"mgf\":{\"mgf1\":{}}}}}],\"signature_policy\":[{\"padding\":{\"PKCS1_V15\":{}}},{\"padding\":{\"PSS\":{\"mgf\":{\"mgf1\":{}}}}}]}}",
-                newRsaKeyName);
-        System.out.println(
-                String.format("Creating a new RSA key named '%s' through %s ...", newRsaKeyName, generateKeyUrl));
-        String generateKeyResponseString = sendHttpRequest(generateKeyUrl, "POST", generateKeyRequest, authString);
-        ObjectMapper keyObjectMapper = new ObjectMapper();
-        JsonNode jsonNode = keyObjectMapper.readTree(generateKeyResponseString);
-        String keyId = jsonNode.get("kid").asText();
-        System.out.println(String.format("Created a new RSA key named '%s' with key id: %s", newRsaKeyName, keyId));
+        ApiClient client = new ApiClient();
 
-        String getKeyAttestationUrl = FORTANIX_AMER_SAAS_SERVER_URL + "/crypto/v1/keys/key_attestation";
-        String getKeyAttestationRequest = String.format("{\"key\":{\"kid\":\"%s\"}}", keyId);
-        System.out.println(String.format("Getting key attestation statement through %s ...", getKeyAttestationUrl));
-        String keyAttestationResponseString = sendHttpRequest(getKeyAttestationUrl, "POST", getKeyAttestationRequest, authString);
-        System.out.println(String.format("Got key attestation statement"));
+        // Set the path of the server to talk to.
+        client.setBasePath(FORTANIX_AMER_SAAS_SERVER_URL);
+
+        // This optionally enables verbose logging in the API library.
+        client.setDebugging(DEBUG);
+
+        // The default ApiClient (and its configured authorization) will be
+        // used for constructing the specific API objects, such as
+        // AuthenticationApi and SecurityObjectsApi.
+        Configuration.setDefaultApiClient(client);
+
+        // When authenticating as an application, the API Key functions as
+        // the entire HTTP basic auth token.
+        client.setBasicAuthString(appApiKeyString);
+
+        String bearerToken = null;
+        // Acquire a bearer token to use for other APIs.
+        try {
+            AuthResponse response = new AuthenticationApi().authorize();
+            bearerToken = response.getAccessToken();
+            if (DEBUG) {
+                System.err.printf("Received Bearer token %s\n", bearerToken);
+            }
+
+            // Configure the client library to use the bearer token.
+            ApiKeyAuth bearerAuth = (ApiKeyAuth) client.getAuthentication("bearerToken");
+            bearerAuth.setApiKey(bearerToken);
+            bearerAuth.setApiKeyPrefix("Bearer");
+        } catch (ApiException e) {
+            System.err.println("Unable to authenticate: " + e.getMessage());
+            System.exit(1);
+        }
+
+        // Create a RSA key
+        SecurityObjectsApi securityObjectsApi = new SecurityObjectsApi();
+        SobjectRequest sobjectRequest = new SobjectRequest();
+        String newRsaKeyName = UUID.randomUUID().toString();
+        sobjectRequest.setName(newRsaKeyName);
+        sobjectRequest.setObjType(ObjectType.RSA);
+        sobjectRequest.setKeySize(2048);
+        System.out.println(String.format("Generating a new RSA key named '%s' ...", newRsaKeyName));
+        KeyObject newRsaKeyObject = securityObjectsApi.generateSecurityObject(sobjectRequest);
+        String keyId = newRsaKeyObject.getKid();
+        System.out.println(String.format("Generated a new RSA key named '%s' with key id: %s", newRsaKeyName, keyId));
 
         // Get the the key attestation statement of the key just created
-        ObjectMapper attestationObjectMapper = new ObjectMapper();
-        KeyAttestationResponse decodedResponse = attestationObjectMapper.readValue(keyAttestationResponseString, KeyAttestationResponse.class);
+        String path = "/crypto/v1/keys/key_attestation"; // API path
+        String method = "POST";
+        List<Pair> queryParams = new ArrayList<>(); // query parameters
+        Object body = String.format("{\"key\":{\"kid\":\"%s\"}}", keyId);
+        Map<String, String> headerParams = new HashMap<>(); // header parameters
+        Map<String, Object> formParams = new HashMap<>(); // form parameters
+        String accept = "application/json";
+        String contentType = "application/json";
+        String[] authNames = new String[] { "bearerToken" };
+        GenericType<KeyAttestationResponse> returnType = new GenericType<KeyAttestationResponse>() {
+        };
+        System.out.println(String.format("Getting key attestation statement through ..."));
+        KeyAttestationResponse keyAttestationResponse = client.invokeAPI(path, method, queryParams, body, headerParams,
+                formParams, accept, contentType, authNames, returnType);
+        System.out.println("Got key attestation statement");
 
+        // Logout SDKMS ApiClient
+        if (bearerToken != null) {
+            // It is a good idea to terminate the session when you are done
+            // using it. This minimizes the window of time in which an attacker
+            // could steal bearer token and use it.
+            try {
+                new AuthenticationApi().terminate();
+            } catch (ApiException e) {
+                System.err.println("Error logging out: " + e.getMessage());
+            }
+            bearerToken = null;
+        }
+
+        // Download Fortanix Root CA certificate
         System.out.println("Downloading Fortanix Attestation and Provisioning Root CA certificate form: "
                 + Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CERT_URL);
         X509Certificate trustedRootCert = Common.getFortanixRootCaCertRemote(
                 Common.FORTANIX_ATTESTATION_AND_PROVISIONING_ROOT_CA_CERT_URL);
         System.out.println(String.format("Downloaded Fortanix Attestation and Provisioning Root CA"));
 
-        Verify.verify(decodedResponse, trustedRootCert, true);
+        // Do verification
+        Verify.verify(keyAttestationResponse, trustedRootCert, true);
     }
 
-    public static String sendHttpRequest(String url, String method, String body, String authorization)
-            throws IOException {
-        URL apiUrl = new URL(url);
-        HttpsURLConnection connection = (HttpsURLConnection) apiUrl.openConnection();
-
-        try {
-            // Set the HTTP method
-            connection.setRequestMethod(method);
-
-            // Set the Authorization header if provided
-            if (authorization != null && !authorization.isEmpty()) {
-                connection.setRequestProperty("Authorization", authorization);
-            }
-
-            // Handle request body if provided
-            if (body != null && !body.isEmpty()) {
-                connection.setDoOutput(true);
-                connection.getOutputStream().write(body.getBytes("UTF-8"));
-            }
-
-            int responseCode = connection.getResponseCode();
-            if (responseCode >= 200 && responseCode < 300) {
-                // Successful response, read and return the response body
-                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-                reader.close();
-                return response.toString();
-            } else {
-                // Non-2XX response, throw an exception
-                throw new IOException("HTTP request failed with response code: " + responseCode);
-            }
-        } finally {
-            connection.disconnect();
-        }
-    }
 }
