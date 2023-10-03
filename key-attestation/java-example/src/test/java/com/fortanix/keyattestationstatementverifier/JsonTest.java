@@ -21,7 +21,7 @@ public class JsonTest {
         List<String> authorityChain = Arrays.asList("certChain1", "certChain2");
         String statementString = "statement1";
         KeyAttestationStatement keyAttestationStatement = new KeyAttestationStatement(
-                KeyAttestationStatementFormat.X509_CERTIFICATE, statementString);
+                KeyAttestationStatementFormat.x509_certificate, statementString);
 
         // Encode to JSON
         KeyAttestationResponse response = new KeyAttestationResponse(authorityChain, keyAttestationStatement);

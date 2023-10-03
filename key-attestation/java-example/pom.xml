@@ -42,6 +42,12 @@
       <artifactId>jackson-databind</artifactId>
       <version>2.15.2</version>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/com.fortanix/sdkms-client -->
+    <dependency>
+      <groupId>com.fortanix</groupId>
+      <artifactId>sdkms-client</artifactId>
+      <version>4.19.2244</version>
+    </dependency>
   </dependencies>
   <build>
     <testResources>
