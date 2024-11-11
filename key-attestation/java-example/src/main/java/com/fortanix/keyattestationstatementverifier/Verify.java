@@ -102,7 +102,7 @@ public final class Verify {
             verify_cert_chain_signature(authorityChain, trustRootCa, verifyCrl);
         } catch (Exception e) {
             throw new KeyAttestationStatementVerifyException(
-                    "The signature in 'Fortanix DSM Key Attestation' certificate is invalid, " + e.toString());
+                    "Failed to verify signatures in `authorityChain`, " + e.toString());
         }
 
         CertChecker statementChecker = new KeyAttestationStatementCertChecker();
@@ -141,13 +141,14 @@ public final class Verify {
         // Because root CA does not contain CRL distribution point extension,
         // CertPathValidator will throw error when CRL revocation check is enabled.
         // As a result, root CA need to be removed from cert chain.
-        CertPath certPath = factory.generateCertPath(chain.subList(0, chain.size() - 1));
+        List<X509Certificate> modified_chain = chain.subList(0, chain.size() - 1);
+        CertPath certPath = factory.generateCertPath(modified_chain);
 
         // Set up TrustAnchor using the last certificate as the root certificate
         TrustAnchor trustAnchor = new TrustAnchor(trust_ca, null);
         Set<TrustAnchor> trustAnchors = Collections.singleton(trustAnchor);
 
-        CertPathBuilder cpb = CertPathBuilder.getInstance("PKIX");
+        CertPathBuilder cpb = CertPathBuilder.getInstance("PKIX", "BC");
         PKIXRevocationChecker rc = (PKIXRevocationChecker) cpb.getRevocationChecker();
         rc.setOptions(EnumSet.of(
                 PKIXRevocationChecker.Option.PREFER_CRLS, // prefer CLR over OCSP
@@ -160,7 +161,7 @@ public final class Verify {
         }
 
         // Validate CertPath
-        CertPathValidator validator = CertPathValidator.getInstance("PKIX");
+        CertPathValidator validator = CertPathValidator.getInstance("PKIX", "BC");
         try {
             validator.validate(certPath, pkixParams);
         } catch (CertPathValidatorException e) {

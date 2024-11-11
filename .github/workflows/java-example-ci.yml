@@ -44,7 +44,7 @@ jobs:
             echo "Maven is already installed"
           fi
     - name: Build with Maven
-      run: mvn -B package --file key-attestation/java-example/pom.xml
+      run: mvn -B package -Dstyle.color=always --file key-attestation/java-example/pom.xml
       env:
         AMER_APP_API_KEY: ${{ secrets.AMER_APP_API_KEY }}
 
