@@ -73,7 +73,9 @@ public class VerifyTest {
         X509Certificate trusted = cert_chain.get(cert_chain.size() - 1);
         // because at time this code is written, CRL server is not setup, we turn of the
         // CRL check
-        Verify.verify(authorityChain, cert_chain.get(0), trusted, false);
+        KeyAttestationStatementVerifyException exception = assertThrows(KeyAttestationStatementVerifyException.class,
+                () -> Verify.verify(authorityChain, cert_chain.get(0), trusted, false));
+        assertTrue("certificates should already expired", exception.toString().contains("validity check failed"));
     }
 
     /**
@@ -98,7 +100,9 @@ public class VerifyTest {
         X509Certificate trusted = Verify.readBase64EncodedCertificate(authorityChain.get(authorityChain.size() - 1));
         // because at time this code is written, CRL server is not setup, we turn of the
         // CRL check
-        Verify.verify(decodedResponse, trusted, false);
+        KeyAttestationStatementVerifyException exception = assertThrows(KeyAttestationStatementVerifyException.class,
+                () -> Verify.verify(decodedResponse, trusted, false));
+        assertTrue("certificates should already expired", exception.toString().contains("validity check failed"));
     }
 
     /**
@@ -145,7 +149,7 @@ public class VerifyTest {
             bearerAuth.setApiKeyPrefix("Bearer");
         } catch (ApiException e) {
             System.err.println("Unable to authenticate: " + e.getMessage());
-            System.exit(1);
+            throw e;
         }
 
         // Create a RSA key
