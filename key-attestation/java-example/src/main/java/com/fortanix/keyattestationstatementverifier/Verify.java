@@ -165,7 +165,7 @@ public final class Verify {
             validator.validate(certPath, pkixParams);
         } catch (CertPathValidatorException e) {
             // Handle validation exception
-            throw new KeyAttestationStatementVerifyException("Certificate chain validation failed" + e.toString());
+            throw new KeyAttestationStatementVerifyException("Certificate chain validation failed, " + e.toString());
         }
         LOGGER.info("DONE");
     }
