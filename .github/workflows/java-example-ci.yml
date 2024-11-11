@@ -8,10 +8,15 @@ on:
     branches: [ "main" ]
     paths:
         - 'key-attestation/java-example/**'
+        - '.github/workflows/**'
   pull_request:
     branches: [ "main" ]
     paths:
         - 'key-attestation/java-example/**'
+        - '.github/workflows/**'
+  schedule:
+    # Runs at 00:00 UTC every other day
+    - cron: '0 0 */2 * *'
 
 jobs:
   build:
