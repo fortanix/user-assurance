@@ -18,7 +18,6 @@ import java.security.cert.CertPathValidator;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXBuilderParameters;
-import java.security.cert.PKIXParameters;
 import java.security.cert.PKIXRevocationChecker;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509CertSelector;
@@ -147,6 +146,10 @@ public final class Verify {
         // Set up TrustAnchor using the last certificate as the root certificate
         TrustAnchor trustAnchor = new TrustAnchor(trust_ca, null);
         Set<TrustAnchor> trustAnchors = Collections.singleton(trustAnchor);
+
+        if (verifyCrl) {
+            System.setProperty("org.bouncycastle.x509.enableCRLDP", "true");
+        }
 
         CertPathBuilder cpb = CertPathBuilder.getInstance("PKIX", "BC");
         PKIXRevocationChecker rc = (PKIXRevocationChecker) cpb.getRevocationChecker();
